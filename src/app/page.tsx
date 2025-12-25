@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
+import { BentoGrid } from '@/components/BentoGrid';
 
 export default function Home() {
   return (
@@ -9,12 +9,11 @@ export default function Home() {
       {/* Hero Section - Mobile First */}
       <section className="relative w-full min-h-screen sm:h-screen overflow-hidden bg-gradient-to-r from-luxury-900 to-luxury-700 flex items-center justify-center">
         <div className="absolute inset-0 z-0">
-          <Image
-            src="https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=1400&h=900&fit=crop"
-            alt="Hero Background"
-            fill
-            className="object-cover opacity-30"
-            priority
+          <img
+            src="https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?w=1920&h=1080&fit=crop&q=80"
+            alt="Luxury Designer Brands"
+            className="absolute inset-0 w-full h-full object-cover opacity-30"
+            loading="eager"
           />
         </div>
         
@@ -36,46 +35,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Categories Section - Mobile First */}
-      <section className="py-mobile bg-white">
-        <div className="container-luxury">
-          <h2 className="font-elegant text-center mb-8 sm:mb-12 md:mb-16 text-luxury-800">
-            Shop by Category
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-mobile">
-            {[
-              {
-                title: 'Watches',
-                image: 'https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=400&h=400&fit=crop',
-              },
-              {
-                title: 'Jewelry',
-                image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=400&h=400&fit=crop',
-              },
-              {
-                title: 'Fashion',
-                image: 'https://images.unsplash.com/photo-1595777707802-241d52e6ef7e?w=400&h=400&fit=crop',
-              },
-            ].map((category, idx) => (
-              <Link key={idx} href={`/products?category=${category.title.toLowerCase()}`}>
-                <div className="group relative h-48 sm:h-64 rounded-lg overflow-hidden shadow-elegant hover:shadow-luxury transition cursor-pointer">
-                  <Image
-                    src={category.image}
-                    alt={category.title}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition flex items-center justify-center">
-                    <h3 className="font-elegant text-2xl sm:text-3xl text-white font-bold">
-                      {category.title}
-                    </h3>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Categories Section - Bento Grid */}
+      <BentoGrid />
 
       {/* Featured Products - Mobile First */}
       <section className="py-mobile bg-gray-50">
@@ -84,37 +45,122 @@ export default function Home() {
             Featured Selections
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-mobile">
-            {[1, 2, 3, 4].map((product) => (
-              <div key={product} className="product-card">
-                <div className="product-image-container">
-                  <Image
-                    src={`https://images.unsplash.com/photo-${1607623814075 + product}?w=400&h=500&fit=crop`}
-                    alt={`Product ${product}`}
-                    fill
-                    className="product-image"
-                  />
-                  <div className="absolute top-4 right-4">
-                    <span className="badge badge-exclusive">New</span>
-                  </div>
-                </div>
-                <div className="p-3 sm:p-4">
-                  <h3 className="font-elegant text-base sm:text-lg mb-2 text-luxury-800">
-                    Premium Product {product}
-                  </h3>
-                  <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">
-                    Luxurious craftsmanship meets timeless elegance.
-                  </p>
-                  <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
-                    <span className="font-bold text-base sm:text-lg text-luxury-800">
-                      ${(500 + product * 100).toFixed(2)}
-                    </span>
-                  </div>
-                  <button className="btn btn-primary w-full py-2 sm:py-3 text-sm sm:text-base">
-                    Add to Cart
-                  </button>
+            <div className="product-card">
+              <div className="product-image-container">
+                <img
+                  src="https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=400&h=500&fit=crop&q=80"
+                  alt="Gucci Dionysus Bag"
+                  className="product-image"
+                  loading="lazy"
+                />
+                <div className="absolute top-4 right-4">
+                  <span className="badge badge-exclusive">New</span>
                 </div>
               </div>
-            ))}
+              <div className="p-3 sm:p-4">
+                <h3 className="font-elegant text-base sm:text-lg mb-2 text-luxury-800">
+                  Gucci Dionysus Bag
+                </h3>
+                <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">
+                  Supreme canvas with tiger head closure.
+                </p>
+                <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
+                  <span className="font-bold text-base sm:text-lg text-luxury-800">
+                    $2,890.00
+                  </span>
+                </div>
+                <button className="btn btn-primary w-full py-2 sm:py-3 text-sm sm:text-base">
+                  Add to Cart
+                </button>
+              </div>
+            </div>
+            <div className="product-card">
+              <div className="product-image-container">
+                <img
+                  src="https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=400&h=500&fit=crop&q=80"
+                  alt="Rolex Datejust"
+                  className="product-image"
+                  loading="lazy"
+                />
+                <div className="absolute top-4 right-4">
+                  <span className="badge badge-exclusive">New</span>
+                </div>
+              </div>
+              <div className="p-3 sm:p-4">
+                <h3 className="font-elegant text-base sm:text-lg mb-2 text-luxury-800">
+                  Rolex Datejust 41
+                </h3>
+                <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">
+                  Steel and yellow gold with champagne dial.
+                </p>
+                <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
+                  <span className="font-bold text-base sm:text-lg text-luxury-800">
+                    $14,300.00
+                  </span>
+                </div>
+                <button className="btn btn-primary w-full py-2 sm:py-3 text-sm sm:text-base">
+                  Add to Cart
+                </button>
+              </div>
+            </div>
+            <div className="product-card">
+              <div className="product-image-container">
+                <img
+                  src="https://images.unsplash.com/photo-1591561954557-26941169b49e?w=400&h=500&fit=crop&q=80"
+                  alt="Dior Lady Dior Bag"
+                  className="product-image"
+                  loading="lazy"
+                />
+                <div className="absolute top-4 right-4">
+                  <span className="badge badge-exclusive">New</span>
+                </div>
+              </div>
+              <div className="p-3 sm:p-4">
+                <h3 className="font-elegant text-base sm:text-lg mb-2 text-luxury-800">
+                  Dior Lady Dior Bag
+                </h3>
+                <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">
+                  Cannage lambskin with iconic charms.
+                </p>
+                <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
+                  <span className="font-bold text-base sm:text-lg text-luxury-800">
+                    $5,200.00
+                  </span>
+                </div>
+                <button className="btn btn-primary w-full py-2 sm:py-3 text-sm sm:text-base">
+                  Add to Cart
+                </button>
+              </div>
+            </div>
+            <div className="product-card">
+              <div className="product-image-container">
+                <img
+                  src="https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?w=400&h=500&fit=crop&q=80"
+                  alt="Celine Triomphe Bag"
+                  className="product-image"
+                  loading="lazy"
+                />
+                <div className="absolute top-4 right-4">
+                  <span className="badge badge-exclusive">New</span>
+                </div>
+              </div>
+              <div className="p-3 sm:p-4">
+                <h3 className="font-elegant text-base sm:text-lg mb-2 text-luxury-800">
+                  Celine Triomphe Bag
+                </h3>
+                <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">
+                  Smooth calfskin with gold hardware.
+                </p>
+                <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
+                  <span className="font-bold text-base sm:text-lg text-luxury-800">
+                    $3,450.00
+                  </span>
+                </div>
+                <button className="btn btn-primary w-full py-2 sm:py-3 text-sm sm:text-base">
+                  Add to Cart
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>

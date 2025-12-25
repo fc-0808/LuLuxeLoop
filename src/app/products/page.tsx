@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/lib/store';
@@ -23,7 +23,7 @@ const MOCK_PRODUCTS: Product[] = [
     price: 2500,
     original_price: 2999,
     category: 'watches',
-    image: 'https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=400&h=500&fit=crop',
+    image: 'https://images.unsplash.com/photo-1587836374828-4dbafa94cf0e?w=400&h=500&fit=crop&q=80',
     rating: 4.8,
     isNew: true,
   },
@@ -32,7 +32,7 @@ const MOCK_PRODUCTS: Product[] = [
     name: 'Diamond Solitaire Ring',
     price: 5200,
     category: 'jewelry',
-    image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=400&h=500&fit=crop',
+    image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&h=500&fit=crop&q=80',
     rating: 5,
     isNew: false,
   },
@@ -42,7 +42,7 @@ const MOCK_PRODUCTS: Product[] = [
     price: 1800,
     original_price: 2200,
     category: 'fashion',
-    image: 'https://images.unsplash.com/photo-1595777707802-241d52e6ef7e?w=400&h=500&fit=crop',
+    image: 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=400&h=500&fit=crop&q=80',
     rating: 4.6,
     isNew: true,
   },
@@ -51,7 +51,7 @@ const MOCK_PRODUCTS: Product[] = [
     name: 'Gold Bracelet',
     price: 3200,
     category: 'jewelry',
-    image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=400&h=500&fit=crop',
+    image: 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=400&h=500&fit=crop&q=80',
     rating: 4.7,
     isNew: false,
   },
@@ -60,7 +60,7 @@ const MOCK_PRODUCTS: Product[] = [
     name: 'Luxury Watch',
     price: 4500,
     category: 'watches',
-    image: 'https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=400&h=500&fit=crop',
+    image: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=400&h=500&fit=crop&q=80',
     rating: 4.9,
     isNew: false,
   },
@@ -70,7 +70,7 @@ const MOCK_PRODUCTS: Product[] = [
     price: 1400,
     original_price: 1600,
     category: 'fashion',
-    image: 'https://images.unsplash.com/photo-1591047990154-a643bb166830?w=400&h=500&fit=crop',
+    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&h=500&fit=crop&q=80',
     rating: 4.5,
     isNew: true,
   },
@@ -79,7 +79,7 @@ const MOCK_PRODUCTS: Product[] = [
     name: 'Pearl Necklace',
     price: 2800,
     category: 'jewelry',
-    image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=400&h=500&fit=crop',
+    image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=500&fit=crop&q=80',
     rating: 4.8,
     isNew: false,
   },
@@ -89,7 +89,7 @@ const MOCK_PRODUCTS: Product[] = [
     price: 2100,
     original_price: 2500,
     category: 'fashion',
-    image: 'https://images.unsplash.com/photo-1539533057440-7814a9d4aae6?w=400&h=500&fit=crop',
+    image: 'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=400&h=500&fit=crop&q=80',
     rating: 4.7,
     isNew: true,
   },
@@ -104,6 +104,11 @@ export default function ProductsPage() {
   const [priceRange, setPriceRange] = useState([0, 10000]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const addToCart = useCart((state) => state.addItem);
+
+  // Scroll to top when category changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [selectedCategory]);
 
   const filteredProducts = MOCK_PRODUCTS.filter((product) => {
     const categoryMatch = selectedCategory === 'all' || product.category === selectedCategory;

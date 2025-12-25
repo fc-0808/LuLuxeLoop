@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { MegaMenu } from './MegaMenu';
 
 export function Navbar() {
   const { user, isLoading, signOut } = useAuth();
@@ -26,9 +27,7 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex gap-6 lg:gap-8 items-center">
-            <Link href="/products" className="text-sm lg:text-base text-gray-700 hover:text-luxury-800 transition">
-              Products
-            </Link>
+            <MegaMenu />
             <Link href="/collections" className="text-sm lg:text-base text-gray-700 hover:text-luxury-800 transition">
               Collections
             </Link>

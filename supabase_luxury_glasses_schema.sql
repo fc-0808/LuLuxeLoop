@@ -151,6 +151,36 @@ CREATE TABLE IF NOT EXISTS product_variants (
 CREATE INDEX IF NOT EXISTS idx_product_variants_product_id ON product_variants(product_id);
 CREATE INDEX IF NOT EXISTS idx_product_variants_is_available ON product_variants(is_available);
 -- ============================================================================
+-- 8. PRODUCT IMAGES (Stores URLs/paths to images in Supabase Storage)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS product_images (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    variant_id UUID REFERENCES product_variants(id) ON DELETE CASCADE,
+    -- Image storage path/URL (stored in Supabase Storage, not as binary in DB)
+    image_url TEXT NOT NULL,
+    -- Image metadata
+    alt_text VARCHAR(255),
+    display_order INTEGER DEFAULT 0,
+    is_primary BOOLEAN DEFAULT false,
+    -- Image file info (for reference, not storage)
+    file_name VARCHAR(255),
+    file_size_bytes INTEGER,
+    mime_type VARCHAR(50),
+    -- 'image/png', 'image/webp', 'image/avif', etc.
+    width_px INTEGER,
+    height_px INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON product_images(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_images_variant_id ON product_images(variant_id);
+CREATE INDEX IF NOT EXISTS idx_product_images_is_primary ON product_images(is_primary);
+CREATE INDEX IF NOT EXISTS idx_product_images_display_order ON product_images(display_order);
+-- Ensure only one primary image per product
+CREATE UNIQUE INDEX IF NOT EXISTS idx_product_images_unique_primary ON product_images(product_id)
+WHERE is_primary = true;
+-- ============================================================================
 -- SEED DATA
 -- ============================================================================
 -- Insert frame materials
@@ -363,6 +393,7 @@ ALTER TABLE lens_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE frame_shapes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE product_variants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE product_images ENABLE ROW LEVEL SECURITY;
 -- Allow public read access to reference tables and active products
 CREATE POLICY "public_read_brands" ON brands FOR
 SELECT USING (is_active = true);
@@ -378,3 +409,12 @@ CREATE POLICY "public_read_active_products" ON products FOR
 SELECT USING (status = 'active');
 CREATE POLICY "public_read_available_variants" ON product_variants FOR
 SELECT USING (is_available = true);
+CREATE POLICY "public_read_product_images" ON product_images FOR
+SELECT USING (
+        EXISTS (
+            SELECT 1
+            FROM products
+            WHERE products.id = product_images.product_id
+                AND products.status = 'active'
+        )
+    );

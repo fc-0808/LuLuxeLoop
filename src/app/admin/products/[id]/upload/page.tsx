@@ -54,7 +54,7 @@ export default function ProductImageUploadPage() {
 
     const isPrimary = images.length === 0; // First image is primary
 
-    const { data, error } = await createProductImage(file, productId, {
+    const { error } = await createProductImage(file, productId, {
       altText: file.name,
       isPrimary,
       displayOrder: images.length,
@@ -82,11 +82,6 @@ export default function ProductImageUploadPage() {
       setSuccess('Image deleted successfully!');
       await loadImages();
     }
-  };
-
-  const handleSetPrimary = async (imageId: string) => {
-    // This would require an update function - for now, just show message
-    setError('Setting primary image requires additional database update function');
   };
 
   if (loading) {

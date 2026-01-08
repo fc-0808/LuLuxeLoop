@@ -1,232 +1,248 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { BentoGrid } from '@/components/BentoGrid';
+import Image from 'next/image';
+import { createClient } from '@/lib/supabase/client';
+
+interface ProductImage {
+  id: string;
+  image_url: string;
+  is_primary: boolean;
+  display_order: number;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  base_price: number;
+  status: string;
+  category_id: string;
+  brand_id: string;
+  product_images: ProductImage[];
+  brands?: { name: string; slug: string };
+  product_categories?: { name: string; slug: string };
+}
+
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  products: Product[];
+}
 
 export default function Home() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  async function fetchProducts() {
+    const supabase = createClient();
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Fetch categories
+      const { data: categoriesData } = await supabase
+        .from('product_categories')
+        .select('id, name, slug')
+        .eq('is_active', true)
+        .order('display_order');
+
+      // Fetch products with images
+      const { data: productsData } = await supabase
+        .from('products')
+        .select(`
+          id, name, sku, base_price, status, category_id, brand_id,
+          product_images (id, image_url, is_primary, display_order),
+          brands (name, slug),
+          product_categories (name, slug)
+        `)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (categoriesData && productsData) {
+        const categoriesWithProducts = categoriesData.map((cat: { id: string; name: string; slug: string }) => ({
+          ...cat,
+          products: productsData.filter((p: any) => p.category_id === cat.id) as Product[]
+        })).filter((cat: Category) => cat.products.length > 0);
+
+        setCategories(categoriesWithProducts);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const getPrimaryImage = (images: ProductImage[]) => {
+    if (!images || images.length === 0) return null;
+    const primary = images.find(img => img.is_primary);
+    return primary || images[0];
+  };
+
+  const getThumbnails = (images: ProductImage[]) => {
+    if (!images || images.length <= 1) return [];
+    return images.slice(0, 4);
+  };
+
+  const filteredCategories = categories.map(cat => ({
+    ...cat,
+    products: cat.products.filter(p => 
+      searchQuery === '' || 
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.sku.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  })).filter(cat => cat.products.length > 0);
+
   return (
-    <main>
-      {/* Hero Section - Mobile First */}
-      <section className="relative w-full min-h-screen sm:h-screen overflow-hidden bg-gradient-to-r from-luxury-900 to-luxury-700 flex items-center justify-center">
-        <div className="absolute inset-0 z-0">
-          <img
-            src="https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?w=1920&h=1080&fit=crop&q=80"
-            alt="Luxury Designer Brands"
-            className="absolute inset-0 w-full h-full object-cover opacity-30"
-            loading="eager"
-          />
-        </div>
-        
-        <div className="container-luxury relative z-10 text-center text-white py-12 sm:py-0">
-          <h1 className="font-elegant mb-4 sm:mb-6 font-bold">
-            Luxury Redefined
-          </h1>
-          <p className="text-base sm:text-lg md:text-xl lg:text-2xl mb-6 sm:mb-8 text-gray-100 max-w-2xl mx-auto px-4 sm:px-0">
-            Discover an exquisite collection of premium products curated for the discerning taste.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center flex-wrap px-4 sm:px-0">
-            <Link href="/products" className="btn btn-secondary">
-              Explore Collection
-            </Link>
-            <Link href="/new-arrivals" className="btn btn-outline text-white border-white hover:bg-white/10">
-              New Arrivals
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Categories Section - Bento Grid */}
-      <BentoGrid />
-
-      {/* Featured Products - Mobile First */}
-      <section className="py-mobile bg-gray-50">
+    <main className="min-h-screen bg-white">
+      {/* Search Bar */}
+      <div className="sticky top-14 sm:top-16 z-30 bg-white border-b border-gray-200 py-3">
         <div className="container-luxury">
-          <h2 className="font-elegant text-center mb-8 sm:mb-12 md:mb-16 text-luxury-800">
-            Featured Selections
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-mobile">
-            <div className="product-card">
-              <div className="product-image-container">
-                <img
-                  src="https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=400&h=500&fit=crop&q=80"
-                  alt="Gucci Dionysus Bag"
-                  className="product-image"
-                  loading="lazy"
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1 max-w-md ml-auto">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search for albums/pictures"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-4 pr-20 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-emerald-500"
                 />
-                <div className="absolute top-4 right-4">
-                  <span className="badge badge-exclusive">New</span>
-                </div>
-              </div>
-              <div className="p-3 sm:p-4">
-                <h3 className="font-elegant text-base sm:text-lg mb-2 text-luxury-800">
-                  Gucci Dionysus Bag
-                </h3>
-                <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">
-                  Supreme canvas with tiger head closure.
-                </p>
-                <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
-                  <span className="font-bold text-base sm:text-lg text-luxury-800">
-                    $2,890.00
-                  </span>
-                </div>
-                <button className="btn btn-primary w-full py-2 sm:py-3 text-sm sm:text-base">
-                  Add to Cart
-                </button>
-              </div>
-            </div>
-            <div className="product-card">
-              <div className="product-image-container">
-                <img
-                  src="https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=400&h=500&fit=crop&q=80"
-                  alt="Rolex Datejust"
-                  className="product-image"
-                  loading="lazy"
-                />
-                <div className="absolute top-4 right-4">
-                  <span className="badge badge-exclusive">New</span>
-                </div>
-              </div>
-              <div className="p-3 sm:p-4">
-                <h3 className="font-elegant text-base sm:text-lg mb-2 text-luxury-800">
-                  Rolex Datejust 41
-                </h3>
-                <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">
-                  Steel and yellow gold with champagne dial.
-                </p>
-                <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
-                  <span className="font-bold text-base sm:text-lg text-luxury-800">
-                    $14,300.00
-                  </span>
-                </div>
-                <button className="btn btn-primary w-full py-2 sm:py-3 text-sm sm:text-base">
-                  Add to Cart
-                </button>
-              </div>
-            </div>
-            <div className="product-card">
-              <div className="product-image-container">
-                <img
-                  src="https://images.unsplash.com/photo-1591561954557-26941169b49e?w=400&h=500&fit=crop&q=80"
-                  alt="Dior Lady Dior Bag"
-                  className="product-image"
-                  loading="lazy"
-                />
-                <div className="absolute top-4 right-4">
-                  <span className="badge badge-exclusive">New</span>
-                </div>
-              </div>
-              <div className="p-3 sm:p-4">
-                <h3 className="font-elegant text-base sm:text-lg mb-2 text-luxury-800">
-                  Dior Lady Dior Bag
-                </h3>
-                <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">
-                  Cannage lambskin with iconic charms.
-                </p>
-                <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
-                  <span className="font-bold text-base sm:text-lg text-luxury-800">
-                    $5,200.00
-                  </span>
-                </div>
-                <button className="btn btn-primary w-full py-2 sm:py-3 text-sm sm:text-base">
-                  Add to Cart
-                </button>
-              </div>
-            </div>
-            <div className="product-card">
-              <div className="product-image-container">
-                <img
-                  src="https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?w=400&h=500&fit=crop&q=80"
-                  alt="Celine Triomphe Bag"
-                  className="product-image"
-                  loading="lazy"
-                />
-                <div className="absolute top-4 right-4">
-                  <span className="badge badge-exclusive">New</span>
-                </div>
-              </div>
-              <div className="p-3 sm:p-4">
-                <h3 className="font-elegant text-base sm:text-lg mb-2 text-luxury-800">
-                  Celine Triomphe Bag
-                </h3>
-                <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">
-                  Smooth calfskin with gold hardware.
-                </p>
-                <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
-                  <span className="font-bold text-base sm:text-lg text-luxury-800">
-                    $3,450.00
-                  </span>
-                </div>
-                <button className="btn btn-primary w-full py-2 sm:py-3 text-sm sm:text-base">
-                  Add to Cart
+                <button className="absolute right-0 top-0 h-full px-4 bg-emerald-500 text-white rounded-r-md hover:bg-emerald-600 transition text-sm font-medium">
+                  Search
                 </button>
               </div>
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* Newsletter Section - Mobile First */}
-      <section className="py-8 sm:py-12 md:py-16 lg:py-20 gradient-luxury">
-        <div className="container-luxury">
-          <div className="max-w-2xl mx-auto text-center text-white px-4 sm:px-0">
-            <h2 className="font-elegant mb-3 sm:mb-4">
-              Exclusive Offers
-            </h2>
-            <p className="text-sm sm:text-base md:text-lg mb-6 sm:mb-8 text-gray-100">
-              Subscribe to our newsletter for early access to new collections and exclusive member discounts.
-            </p>
-            <form className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-2.5 sm:py-3 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm sm:text-base"
-                required
-              />
-              <button type="submit" className="btn btn-secondary whitespace-nowrap text-sm sm:text-base">
-                Subscribe
-              </button>
-            </form>
+      {/* Products Content */}
+      <div className="container-luxury py-6">
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
           </div>
-        </div>
-      </section>
+        ) : filteredCategories.length === 0 ? (
+          <div className="text-center py-20">
+            <p className="text-gray-500 text-lg">No products found</p>
+            <p className="text-gray-400 text-sm mt-2">Add products from the admin panel</p>
+          </div>
+        ) : (
+          filteredCategories.map((category) => (
+            <section key={category.id} className="mb-10">
+              {/* Category Header */}
+              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-200">
+                <div className="w-1 h-5 bg-emerald-500 rounded"></div>
+                <h2 className="text-lg font-medium text-gray-800">{category.name}</h2>
+                <span className="text-sm text-gray-400">({category.products.length})</span>
+              </div>
 
-      {/* Footer - Mobile First */}
-      <footer className="bg-luxury-900 text-white">
-        <div className="container-luxury py-8 sm:py-12 md:py-16">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 mb-6 sm:mb-8">
-            <div>
-              <h4 className="font-elegant text-lg sm:text-xl mb-3 sm:mb-4">LeLuxeLoop</h4>
-              <p className="text-sm sm:text-base text-gray-400">
-                Premium luxury products for the discerning customer.
-              </p>
-            </div>
-            <div>
-              <h5 className="font-semibold mb-3 sm:mb-4 text-base">Shop</h5>
-              <ul className="space-y-2 text-sm sm:text-base text-gray-400">
-                <li><Link href="/products" className="hover:text-gold-500 transition">Products</Link></li>
-                <li><Link href="/collections" className="hover:text-gold-500 transition">Collections</Link></li>
-                <li><Link href="/new-arrivals" className="hover:text-gold-500 transition">New Arrivals</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h5 className="font-semibold mb-3 sm:mb-4 text-base">Support</h5>
-              <ul className="space-y-2 text-sm sm:text-base text-gray-400">
-                <li><Link href="/contact" className="hover:text-gold-500 transition">Contact Us</Link></li>
-                <li><Link href="/shipping" className="hover:text-gold-500 transition">Shipping Info</Link></li>
-                <li><Link href="/returns" className="hover:text-gold-500 transition">Returns</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h5 className="font-semibold mb-3 sm:mb-4 text-base">Legal</h5>
-              <ul className="space-y-2 text-sm sm:text-base text-gray-400">
-                <li><Link href="/privacy" className="hover:text-gold-500 transition">Privacy Policy</Link></li>
-                <li><Link href="/terms" className="hover:text-gold-500 transition">Terms & Conditions</Link></li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-gray-700 pt-6 sm:pt-8 text-center text-xs sm:text-sm text-gray-400">
-            <p>&copy; 2024 LeLuxeLoop. All rights reserved.</p>
-          </div>
+              {/* Products Grid - Dense Layout */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+                {category.products.map((product) => {
+                  const primaryImage = getPrimaryImage(product.product_images);
+                  const thumbnails = getThumbnails(product.product_images);
+                  const imageCount = product.product_images?.length || 0;
+
+                  return (
+                    <Link
+                      key={product.id}
+                      href={`/products/${product.id}`}
+                      className="group block"
+                    >
+                      <div className="bg-white border border-gray-200 rounded overflow-hidden hover:shadow-md transition-shadow">
+                        {/* Main Image */}
+                        <div className="relative aspect-square bg-gray-100">
+                          {primaryImage ? (
+                            <Image
+                              src={primaryImage.image_url}
+                              alt={product.name}
+                              fill
+                              className="object-cover group-hover:scale-105 transition-transform duration-300"
+                              sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 12.5vw"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                          )}
+                          
+                          {/* Image Count Badge */}
+                          {imageCount > 1 && (
+                            <div className="absolute bottom-1 right-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded">
+                              {imageCount}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Thumbnails Row */}
+                        {thumbnails.length > 1 && (
+                          <div className="flex gap-0.5 p-1 bg-gray-50">
+                            {thumbnails.map((thumb, idx) => (
+                              <div key={thumb.id} className="relative w-6 h-6 flex-shrink-0">
+                                <Image
+                                  src={thumb.image_url}
+                                  alt={`${product.name} ${idx + 1}`}
+                                  fill
+                                  className="object-cover rounded-sm"
+                                  sizes="24px"
+                                />
+                              </div>
+                            ))}
+                            {imageCount > 4 && (
+                              <div className="w-6 h-6 flex-shrink-0 bg-gray-200 rounded-sm flex items-center justify-center text-xs text-gray-500">
+                                +{imageCount - 4}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Product Info */}
+                        <div className="p-2">
+                          <p className="text-xs text-gray-600 truncate" title={product.name}>
+                            {product.sku}
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+
+                {/* More Items Link */}
+                {category.products.length >= 8 && (
+                  <Link
+                    href={`/products?category=${category.slug}`}
+                    className="flex items-center justify-center bg-gray-50 border border-gray-200 rounded aspect-square hover:bg-gray-100 transition"
+                  >
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">More</p>
+                      <p className="text-xs text-emerald-600">{category.products.length} items</p>
+                    </div>
+                  </Link>
+                )}
+              </div>
+            </section>
+          ))
+        )}
+      </div>
+
+      {/* Simple Footer */}
+      <footer className="bg-gray-50 border-t border-gray-200 py-6 mt-10">
+        <div className="container-luxury text-center text-sm text-gray-500">
+          <p>&copy; {new Date().getFullYear()} LeLuxeLoop. All rights reserved.</p>
         </div>
       </footer>
     </main>

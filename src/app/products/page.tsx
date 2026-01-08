@@ -1,320 +1,287 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useCart } from '@/lib/store';
+import { useSearchParams } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
+
+interface ProductImage {
+  id: string;
+  image_url: string;
+  is_primary: boolean;
+  display_order: number;
+}
 
 interface Product {
   id: string;
   name: string;
-  price: number;
-  original_price?: number;
-  category: string;
-  image: string;
-  rating: number;
-  isNew: boolean;
+  sku: string;
+  base_price: number;
+  status: string;
+  category_id: string;
+  brand_id: string;
+  product_images: ProductImage[];
+  brands?: { name: string; slug: string };
+  product_categories?: { name: string; slug: string };
 }
 
-const MOCK_PRODUCTS: Product[] = [
-  {
-    id: '1',
-    name: 'Platinum Chronograph',
-    price: 2500,
-    original_price: 2999,
-    category: 'watches',
-    image: 'https://images.unsplash.com/photo-1587836374828-4dbafa94cf0e?w=400&h=500&fit=crop&q=80',
-    rating: 4.8,
-    isNew: true,
-  },
-  {
-    id: '2',
-    name: 'Diamond Solitaire Ring',
-    price: 5200,
-    category: 'jewelry',
-    image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&h=500&fit=crop&q=80',
-    rating: 5,
-    isNew: false,
-  },
-  {
-    id: '3',
-    name: 'Silk Evening Gown',
-    price: 1800,
-    original_price: 2200,
-    category: 'fashion',
-    image: 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=400&h=500&fit=crop&q=80',
-    rating: 4.6,
-    isNew: true,
-  },
-  {
-    id: '4',
-    name: 'Gold Bracelet',
-    price: 3200,
-    category: 'jewelry',
-    image: 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=400&h=500&fit=crop&q=80',
-    rating: 4.7,
-    isNew: false,
-  },
-  {
-    id: '5',
-    name: 'Luxury Watch',
-    price: 4500,
-    category: 'watches',
-    image: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=400&h=500&fit=crop&q=80',
-    rating: 4.9,
-    isNew: false,
-  },
-  {
-    id: '6',
-    name: 'Designer Blazer',
-    price: 1400,
-    original_price: 1600,
-    category: 'fashion',
-    image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&h=500&fit=crop&q=80',
-    rating: 4.5,
-    isNew: true,
-  },
-  {
-    id: '7',
-    name: 'Pearl Necklace',
-    price: 2800,
-    category: 'jewelry',
-    image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=500&fit=crop&q=80',
-    rating: 4.8,
-    isNew: false,
-  },
-  {
-    id: '8',
-    name: 'Cashmere Coat',
-    price: 2100,
-    original_price: 2500,
-    category: 'fashion',
-    image: 'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=400&h=500&fit=crop&q=80',
-    rating: 4.7,
-    isNew: true,
-  },
-];
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
 
-const CATEGORIES = ['all', 'watches', 'jewelry', 'fashion'];
-const SORT_OPTIONS = ['featured', 'price-low', 'price-high', 'newest', 'rating'];
+function ProductsContent() {
+  const searchParams = useSearchParams();
+  const categorySlug = searchParams.get('category');
+  
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(categorySlug);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
-export default function ProductsPage() {
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [sortBy, setSortBy] = useState('featured');
-  const [priceRange, setPriceRange] = useState([0, 10000]);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const addToCart = useCart((state) => state.addItem);
-
-  // Scroll to top when category changes
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [selectedCategory]);
+    fetchData();
+  }, []);
 
-  const filteredProducts = MOCK_PRODUCTS.filter((product) => {
-    const categoryMatch = selectedCategory === 'all' || product.category === selectedCategory;
-    const priceMatch = product.price >= priceRange[0] && product.price <= priceRange[1];
-    return categoryMatch && priceMatch;
-  }).sort((a, b) => {
-    switch (sortBy) {
-      case 'price-low':
-        return a.price - b.price;
-      case 'price-high':
-        return b.price - a.price;
-      case 'newest':
-        return a.isNew ? -1 : 1;
-      case 'rating':
-        return b.rating - a.rating;
-      default:
-        return 0;
+  useEffect(() => {
+    setSelectedCategory(categorySlug);
+  }, [categorySlug]);
+
+  async function fetchData() {
+    const supabase = createClient();
+    if (!supabase) {
+      setLoading(false);
+      return;
     }
+
+    try {
+      // Fetch categories
+      const { data: categoriesData } = await supabase
+        .from('product_categories')
+        .select('id, name, slug')
+        .eq('is_active', true)
+        .order('display_order');
+
+      // Fetch products with images
+      const { data: productsData } = await supabase
+        .from('products')
+        .select(`
+          id, name, sku, base_price, status, category_id, brand_id,
+          product_images (id, image_url, is_primary, display_order),
+          brands (name, slug),
+          product_categories (name, slug)
+        `)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (categoriesData) setCategories(categoriesData);
+      if (productsData) setProducts(productsData as Product[]);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const getPrimaryImage = (images: ProductImage[]) => {
+    if (!images || images.length === 0) return null;
+    const primary = images.find(img => img.is_primary);
+    return primary || images[0];
+  };
+
+  const getThumbnails = (images: ProductImage[]) => {
+    if (!images || images.length <= 1) return [];
+    return images.slice(0, 4);
+  };
+
+  const filteredProducts = products.filter(p => {
+    const categoryMatch = !selectedCategory || 
+      (p.product_categories as any)?.slug === selectedCategory;
+    const searchMatch = searchQuery === '' || 
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.sku.toLowerCase().includes(searchQuery.toLowerCase());
+    return categoryMatch && searchMatch;
   });
+
+  const currentCategory = categories.find(c => c.slug === selectedCategory);
 
   return (
     <main className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="sticky top-14 sm:top-16 z-30 bg-white border-b border-gray-200">
-        <div className="container-luxury py-4 sm:py-6">
-          <h1 className="font-elegant text-2xl sm:text-3xl md:text-4xl text-luxury-800 mb-1 sm:mb-2">
-            Our Collection
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600">
-            {filteredProducts.length} premium products
-          </p>
-        </div>
-      </header>
-
-      <div className="container-luxury py-6 sm:py-12">
-        {/* Mobile Filter Toggle */}
-        <div className="flex md:hidden gap-3 mb-6">
-          <button
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="flex-1 px-4 py-2.5 bg-luxury-800 text-white rounded-lg font-medium transition hover:bg-luxury-900 flex items-center justify-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-            Filters
-          </button>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="flex-1 px-3 py-2.5 border border-gray-300 rounded-lg text-sm"
-          >
-            {SORT_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option.replace('-', ' ').toUpperCase()}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-8 lg:gap-12">
-          {/* Sidebar Filters - Mobile Collapsible */}
-          <aside className={`md:col-span-1 ${isFilterOpen ? 'block' : 'hidden'} md:block`}>
-            <div className="sticky top-32 md:top-36 space-y-6 sm:space-y-8 bg-white md:bg-transparent p-4 md:p-0 rounded-lg md:rounded-none">
-              {/* Close Button Mobile */}
+      {/* Search & Filter Bar */}
+      <div className="sticky top-14 sm:top-16 z-30 bg-white border-b border-gray-200 py-3">
+        <div className="container-luxury">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            {/* Category Tabs */}
+            <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => setIsFilterOpen(false)}
-                className="md:hidden w-full text-center text-gray-600 hover:text-gray-900 mb-4"
+                onClick={() => setSelectedCategory(null)}
+                className={`px-3 py-1.5 text-sm rounded transition ${
+                  !selectedCategory 
+                    ? 'bg-emerald-500 text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
               >
-                ✕ Close
+                All
               </button>
-
-              {/* Categories */}
-              <div>
-                <h3 className="font-elegant text-base sm:text-lg md:text-lg mb-3 sm:mb-4 text-luxury-800">
-                  Categories
-                </h3>
-                <div className="space-y-2">
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => {
-                        setSelectedCategory(cat);
-                        setIsFilterOpen(false);
-                      }}
-                      className={`block w-full text-left px-3 sm:px-4 py-2 rounded transition text-sm sm:text-base ${
-                        selectedCategory === cat
-                          ? 'bg-luxury-800 text-white'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Price Range */}
-              <div>
-                <h3 className="font-elegant text-base sm:text-lg md:text-lg mb-3 sm:mb-4 text-luxury-800">
-                  Price Range
-                </h3>
-                <div className="space-y-3 sm:space-y-4">
-                  <div>
-                    <label className="text-xs sm:text-sm text-gray-600">Min: ${priceRange[0]}</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="10000"
-                      value={priceRange[0]}
-                      onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
-                      className="w-full"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs sm:text-sm text-gray-600">Max: ${priceRange[1]}</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="10000"
-                      value={priceRange[1]}
-                      onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Sort - Desktop Only */}
-              <div className="hidden md:block">
-                <h3 className="font-elegant text-base sm:text-lg md:text-lg mb-3 sm:mb-4 text-luxury-800">
-                  Sort By
-                </h3>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.slug)}
+                  className={`px-3 py-1.5 text-sm rounded transition ${
+                    selectedCategory === cat.slug 
+                      ? 'bg-emerald-500 text-white' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
                 >
-                  {SORT_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option.replace('-', ' ').toUpperCase()}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </aside>
-
-          {/* Products Grid */}
-          <div className="md:col-span-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-mobile">
-              {filteredProducts.map((product) => (
-                <div key={product.id} className="product-card">
-                  <div className="product-image-container relative">
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      fill
-                      className="product-image"
-                    />
-                    {product.isNew && (
-                      <div className="absolute top-4 right-4">
-                        <span className="badge badge-new">New</span>
-                      </div>
-                    )}
-                    {product.original_price && (
-                      <div className="absolute top-4 left-4">
-                        <span className="badge badge-sale">Sale</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-3 sm:p-4">
-                    <Link href={`/products/${product.id}`}>
-                      <h3 className="font-elegant text-base sm:text-lg mb-2 text-luxury-800 hover:text-gold-600 transition">
-                        {product.name}
-                      </h3>
-                    </Link>
-                    <div className="flex items-center gap-1 mb-3 text-yellow-500">
-                      <span>★</span>
-                      <span className="text-xs sm:text-sm text-gray-600">{product.rating}</span>
-                    </div>
-                    <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                      <span className="font-bold text-base sm:text-lg text-luxury-800">
-                        ${product.price.toFixed(2)}
-                      </span>
-                      {product.original_price && (
-                        <span className="text-xs sm:text-sm text-gray-400 line-through">
-                          ${product.original_price.toFixed(2)}
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => {
-                        addToCart(product as any, 1);
-                        alert('Added to cart!');
-                      }}
-                      className="btn btn-primary w-full py-2 sm:py-3 text-xs sm:text-sm"
-                    >
-                      Add to Cart
-                    </button>
-                  </div>
-                </div>
+                  {cat.name}
+                </button>
               ))}
+            </div>
+
+            {/* Search */}
+            <div className="w-full sm:w-auto">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full sm:w-64 pl-4 pr-10 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-emerald-500"
+                />
+                <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Content */}
+      <div className="container-luxury py-6">
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-6 pb-2 border-b border-gray-200">
+          <div className="w-1 h-5 bg-emerald-500 rounded"></div>
+          <h1 className="text-lg font-medium text-gray-800">
+            {currentCategory ? currentCategory.name : 'All Products'}
+          </h1>
+          <span className="text-sm text-gray-400">({filteredProducts.length} items)</span>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="text-center py-20">
+            <p className="text-gray-500 text-lg">No products found</p>
+            <p className="text-gray-400 text-sm mt-2">Try adjusting your filters</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+            {filteredProducts.map((product) => {
+              const primaryImage = getPrimaryImage(product.product_images);
+              const thumbnails = getThumbnails(product.product_images);
+              const imageCount = product.product_images?.length || 0;
+
+              return (
+                <Link
+                  key={product.id}
+                  href={`/products/${product.id}`}
+                  className="group block"
+                >
+                  <div className="bg-white border border-gray-200 rounded overflow-hidden hover:shadow-md transition-shadow">
+                    {/* Main Image */}
+                    <div className="relative aspect-square bg-gray-100">
+                      {primaryImage ? (
+                        <Image
+                          src={primaryImage.image_url}
+                          alt={product.name}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 12.5vw"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                      
+                      {/* Image Count Badge */}
+                      {imageCount > 1 && (
+                        <div className="absolute bottom-1 right-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded">
+                          {imageCount}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Thumbnails Row */}
+                    {thumbnails.length > 1 && (
+                      <div className="flex gap-0.5 p-1 bg-gray-50">
+                        {thumbnails.map((thumb, idx) => (
+                          <div key={thumb.id} className="relative w-6 h-6 flex-shrink-0">
+                            <Image
+                              src={thumb.image_url}
+                              alt={`${product.name} ${idx + 1}`}
+                              fill
+                              className="object-cover rounded-sm"
+                              sizes="24px"
+                            />
+                          </div>
+                        ))}
+                        {imageCount > 4 && (
+                          <div className="w-6 h-6 flex-shrink-0 bg-gray-200 rounded-sm flex items-center justify-center text-xs text-gray-500">
+                            +{imageCount - 4}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Product Info */}
+                    <div className="p-2">
+                      <p className="text-xs text-gray-600 truncate" title={product.name}>
+                        {product.sku}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Simple Footer */}
+      <footer className="bg-gray-50 border-t border-gray-200 py-6 mt-10">
+        <div className="container-luxury text-center text-sm text-gray-500">
+          <p>&copy; {new Date().getFullYear()} LeLuxeLoop. All rights reserved.</p>
+        </div>
+      </footer>
     </main>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <main className="min-h-screen bg-white">
+      <div className="container-luxury py-20">
+        <div className="flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <ProductsContent />
+    </Suspense>
   );
 }
